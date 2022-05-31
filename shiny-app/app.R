@@ -1,10 +1,23 @@
 # Shiny app for looking at MICADAS instrument and run status
 
 library(shiny)
-library(DT, warn.conflicts = FALSE)
+#library(DT, warn.conflicts = FALSE)
 library(amstools)
+library(amsdata)
 library(ggplot2)
 library(dplyr)
+
+norm_magazine <- function(magazine, normstd) {
+  stdrat <- c(oxa1 = 1.0398, oxa2 = 1.3407)
+  magazine <- magazine |>
+    mutate(cor1412 = 	RA / BA ^ 2)
+  mean_std <- magazine |>
+    filter(type == normstd)|>
+    pull(cor1412) |>
+    mean()
+  magazine |>
+    mutate(norm_ratio = norm_run(cor1412, mean_std, stdrat[normstd]))
+}
 
 # Define UI
 ui <- shinyUI(
@@ -21,7 +34,12 @@ ui <- shinyUI(
         radioButtons("type",
                      label = h3("Sample type"),
                      choices = list("all")),
-                     # selected = 1),
+        radioButtons("norm",
+                     label = h3("Normalizing Standard"),
+                     choices = list("none", "oxa1", "oxa2")),
+        radioButtons("plottype",
+                     label = h3("Plot ratio"),
+                     choices = list("RA", "cor1412", "norm_ratio")),
         # checkboxInput("box", label = "Boxplot?", value = FALSE),
         # checkboxInput("oxi", label = "Use only OX-I primaries?", value = FALSE),
         # checkboxInput("group", label = "Last group only?", value = FALSE)
@@ -57,7 +75,8 @@ server <- function(input, output, session) {
   })
 
   mag_df <- reactive({
-    get_magazine(input$magazineSelect)
+    get_magazine(input$magazineSelect) |>
+      norm_magazine(input$norm)
   })
 
   observe({
@@ -77,7 +96,7 @@ server <- function(input, output, session) {
 
   output$Plot <- renderPlot({
     mag_sub_df() %>%
-      ggplot(aes(TIMEDAT, RA, color = type)) +
+      ggplot(aes(TIMEDAT, .data[[input$plottype]], color = type)) +
       geom_point()
   })
 }
