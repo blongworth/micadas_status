@@ -40,7 +40,7 @@ ui <- shinyUI(
         radioButtons("plottype",
                      label = h3("Plot ratio"),
                      choices = list("RA", "cor1412", "norm_ratio")),
-        # checkboxInput("box", label = "Boxplot?", value = FALSE),
+        checkboxInput("box", label = "Boxplot?", value = FALSE),
         # checkboxInput("oxi", label = "Use only OX-I primaries?", value = FALSE),
         # checkboxInput("group", label = "Last group only?", value = FALSE)
       ),
@@ -60,7 +60,6 @@ ui <- shinyUI(
   )
 )
 
-# Define server logic required to draw a histogram
 server <- function(input, output, session) {
 
   # Get list of micadas magazines most recent first
@@ -76,6 +75,7 @@ server <- function(input, output, session) {
 
   mag_df <- reactive({
     get_magazine(input$magazineSelect) |>
+      mutate(postion = as.factor(position)) |>
       norm_magazine(input$norm)
   })
 
@@ -88,16 +88,23 @@ server <- function(input, output, session) {
   mag_sub_df <- reactive({
     df <- mag_df()
     if (input$type != 'all') {
-    df <- df %>%
+    df <- df |>
       filter(type == input$type)
     }
     df
   })
 
   output$Plot <- renderPlot({
-    mag_sub_df() %>%
-      ggplot(aes(TIMEDAT, .data[[input$plottype]], color = type)) +
-      geom_point()
+    if (input$box) {
+      mag_sub_df() |>
+        ggplot(aes(position, .data[[input$plottype]], group = position, color = type)) +
+        geom_boxplot()
+
+    } else {
+      mag_sub_df() |>
+        ggplot(aes(TIMEDAT, .data[[input$plottype]], color = type)) +
+        geom_point()
+    }
   })
 }
 
