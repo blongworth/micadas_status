@@ -8,7 +8,7 @@ library(ggplot2)
 library(dplyr)
 
 norm_magazine <- function(magazine, normstd) {
-  stdrat <- c(oxa1 = 1.0398, oxa2 = 1.3407)
+  stdrat <- c(tank_std = 1.0398, oxa1 = 1.0398, oxa2 = 1.3407)
   magazine <- magazine |>
     mutate(cor1412 = 	RA / BA ^ 2)
   mean_std <- magazine |>
@@ -36,7 +36,7 @@ ui <- shinyUI(
                      choices = list("all")),
         radioButtons("norm",
                      label = h3("Normalizing Standard"),
-                     choices = list("none", "oxa1", "oxa2")),
+                     choices = list("none")),
         radioButtons("plottype",
                      label = h3("Plot ratio"),
                      choices = list("RA", "cor1412", "norm_ratio")),
@@ -67,7 +67,7 @@ server <- function(input, output, session) {
     rev(list_magazines())
   })
 
-  observe ({
+  observeEvent(sqlOutput(), {
     updateSelectInput(session, "magazineSelect",
                       choices = sqlOutput()
     )
@@ -79,10 +79,12 @@ server <- function(input, output, session) {
       norm_magazine(input$norm)
   })
 
-  observe({
+  observeEvent(input$magazineSelect, {
     types <- unique(mag_df()$type)
     updateRadioButtons(session, "type",
                        choices = c('all', types))
+    updateRadioButtons(session, "norm",
+                       choices = c('none', types[types %in% c("oxa1", "oxa2", "tank_std")]))
   })
 
   mag_sub_df <- reactive({
